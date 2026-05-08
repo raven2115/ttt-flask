@@ -27,15 +27,19 @@
 
 <form method="POST" action="/move">
     <div class="board">
-        {% for i in range(3) %}
-            {% for j in range(3) %}
-                <button class="cell" name="move" value="">
-                </button>
-            {% endfor %}
+    {% for i in range(3) %}
+        {% for j in range(3) %}
+            <button class="cell" name="move" value="{{ i+1 }},{{ j+1 }}">
+                {{ board[i][j] }}
+            </button>
         {% endfor %}
+    {% endfor %}
+</div>
+    <div>
+        <p>Ilosc polaczonych klientow = ? / 2</p>
     </div>
     <div>
-        <p>Ilosc polaczonych klientow = {{  }} / 2</p>
+        <p>Ruch: ?</p>
     </div>
 </form>
 </body>
