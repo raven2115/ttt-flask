@@ -6,33 +6,60 @@ class Server:
     def __init__(self):
         self.host = "127.0.0.1"
         self.port = 5002
-        self.s = socket.socket()
+
+        self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        self.clients = []
 
         self.board = [
             ["", "", ""],
             ["", "", ""],
             ["", "", ""]
         ]
+
         self.currentPlayer = "X"
 
-    def boardControl(self, conn):
+    def broadcast(self):
+        data = json.dumps(self.board).encode()
+
+        for client in self.clients:
+            try:
+                client.send(data)
+            except:
+                pass
+
+    def handle_client(self, conn):
         while True:
-            data = conn.recv(1024).decode()
-            if not data:
+            try:
+                data = conn.recv(1024).decode()
+
+                if not data:
+                    break
+
+                move = json.loads(data)
+
+                row = move["row"]
+                col = move["col"]
+                symbol = move["symbol"]
+
+                if self.board[row][col] == "":
+                    self.board[row][col] = symbol
+                    print("Plansza (serwer):")
+                    print(self.board)
+                    self.broadcast()
+            except:
                 break
 
-            board = json.loads(data)
-            print(board)
+        conn.close()
 
     def listen(self):
         self.s.bind((self.host, self.port))
-        print(f"[*] serwer dziala na {self.host}:{self.port}")
         self.s.listen(2)
-        conn, addr = self.s.accept()
-        print(f"[*] {addr}")
+        print(f"Server działa {self.host}:{self.port}")
 
-        t = threading.Thread(target=self.boardControl, args=(conn,))
-        t.start()
-        t.join()
-
-server = Server()
+        while True:
+            conn, addr = self.s.accept()
+            print(f"Połączono: {addr}")
+            self.clients.append(conn)
+            t = threading.Thread(target=self.handle_client, args=(conn,))
+            t.start()

@@ -29,7 +29,7 @@
     <div class="board">
     {% for i in range(3) %}
         {% for j in range(3) %}
-            <button class="cell" name="move" value="{{ i+1 }},{{ j+1 }}">
+            <button class="cell" name="move" value="{{ i }},{{ j }}">
                 {{ board[i][j] }}
             </button>
         {% endfor %}
