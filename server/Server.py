@@ -22,18 +22,42 @@ class Server:
 
     def broadcast(self):
         data = json.dumps(self.board).encode()
-
         for client in self.clients:
             try:
                 client.send(data)
             except:
                 pass
 
+    def win_check(self, board, symbol):
+        if board[0][0]==board[0][1]==board[0][2]==symbol:
+            return True
+        if board[1][0]==board[1][1]==board[1][2]==symbol:
+            return True
+        if board[2][0]==board[2][1]==board[2][2]==symbol:
+            return True
+        if board[0][0]==board[1][0]==board[2][0]==symbol:
+            return True
+        if board[0][1]==board[1][1]==board[2][1]==symbol:
+            return True
+        if board[0][2]==board[1][2]==board[2][2]==symbol:
+            return True
+        if board[0][0]==board[1][1]==board[2][2]==symbol:
+            return True
+        if board[0][2]==board[1][1]==board[2][0]==symbol:
+            return True
+        c = 0
+        for lista in board:
+            for element in lista:
+                if element == "O" or element == "X":
+                    c += 1
+        if c == 9:
+            return "REMIS"
+        return False
+
     def handle_client(self, conn):
         while True:
             try:
                 data = conn.recv(1024).decode()
-
                 if not data:
                     break
 
@@ -47,10 +71,18 @@ class Server:
                     self.board[row][col] = symbol
                     print("Plansza (serwer):")
                     print(self.board)
+                    #sprawdzenie czy ktos wygral i zakonczenie gry
+                    if self.win_check(self.board, symbol):
+                        for client in self.clients:
+                            if symbol == "O":
+                                print("KOLKO")
+                            if symbol == "X":
+                                print("KRZYZYK")
+                    elif self.win_check(self.board, symbol) == "REMIS":
+                        print("REMIS")
                     self.broadcast()
             except:
                 break
-
         conn.close()
 
     def listen(self):
