@@ -19,12 +19,33 @@ class Server:
         ]
 
         self.currentPlayer = "X"
+        self.winner = None
+
+    def reset_game(self):
+        self.board = [
+            ["", "", ""],
+            ["", "", ""],
+            ["", "", ""]
+        ]
+
+        self.currentPlayer = "X"
+        self.winner = None
+
+        self.broadcast()
 
     def broadcast(self):
-        data = json.dumps(self.board).encode()
+        data = {
+            "board": self.board,
+            "currentPlayer": self.currentPlayer,
+            "winner": self.winner,
+            "clients": len(self.clients)
+        }
+
+        packet = json.dumps(data).encode()
+
         for client in self.clients:
             try:
-                client.send(data)
+                client.send(packet)
             except:
                 pass
 
@@ -62,24 +83,22 @@ class Server:
                     break
 
                 move = json.loads(data)
-
+                if move.get("action") == "reset":
+                    self.reset_game()
+                    continue
                 row = move["row"]
                 col = move["col"]
                 symbol = move["symbol"]
 
-                if self.board[row][col] == "":
+                if self.board[row][col] == "" and symbol == self.currentPlayer:
                     self.board[row][col] = symbol
-                    print("Plansza (serwer):")
-                    print(self.board)
-                    #sprawdzenie czy ktos wygral i zakonczenie gry
-                    if self.win_check(self.board, symbol):
-                        for client in self.clients:
-                            if symbol == "O":
-                                print("KOLKO")
-                            if symbol == "X":
-                                print("KRZYZYK")
-                    elif self.win_check(self.board, symbol) == "REMIS":
-                        print("REMIS")
+                    result = self.win_check(self.board, symbol)
+                    if result is True:
+                        self.winner = symbol
+                    elif result == "REMIS":
+                        self.winner = "REMIS"
+                    else:
+                        self.currentPlayer = "O" if self.currentPlayer == "X" else "X"
                     self.broadcast()
             except:
                 break
