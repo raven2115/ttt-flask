@@ -20,6 +20,7 @@
             font-size: 40px;
         }
     </style>
+    <meta http-equiv="refresh" content="1">
 </head>
 <body>
 
@@ -36,11 +37,25 @@
     {% endfor %}
 </div>
     <div>
-        <p>Ilosc polaczonych klientow = ? / 2</p>
+        <p>Ilosc polaczonych klientow = {{ clients }} / 2</p>
     </div>
     <div>
-        <p>Ruch: ?</p>
+        <p>Ruch: {{ currentPlayer }}</p>
+    </div>
+    <div>
+        <p>Grasz jako <b>{{ symbol }}</b></p>
     </div>
 </form>
+{% if winner %}
+    {% if winner == "REMIS" %}
+        <h2>REMIS</h2>
+    {% else %}
+        <h2>Wygral gracz {{ winner }}</h2>
+    {% endif %}
+
+    <form method="POST" action="/reset">
+        <button>Nowa gra</button>
+    </form>
+{% endif %}
 </body>
 </html>
