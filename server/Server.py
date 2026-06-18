@@ -1,32 +1,44 @@
 import socket
-
 import threading
 import json
+from network import Network
+from board import Board
+from stats import Stats
 
-class Server:
+
+class Server(Network):
+
     def __init__(self):
-        self.host = "127.0.0.1"
-        self.port = 5002
-
+        super().__init__("Server")
+        self.__host = "127.0.0.1"
+        self.__port = 5002
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         self.clients = []
 
-        self.board = [
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""]
-        ]
+        self.board = Board()
 
         self.currentPlayer = "X"
         self.winner = None
 
+        self.statsX = Stats()
+        self.statsO = Stats()
+
+    def __del__(self):
+        try:
+            self.s.close()
+        except:
+            pass
+
+    def connect(self):
+        self.connected = True
+        self.log("Server connected")
+
+    def info(self):
+        return "Serwer"
+
     def reset_game(self):
-        self.board = [
-            ["", "", ""],
-            ["", "", ""],
-            ["", "", ""]
-        ]
+        self.board.reset()
 
         self.currentPlayer = "X"
         self.winner = None
@@ -35,83 +47,94 @@ class Server:
 
     def broadcast(self):
         data = {
-            "board": self.board,
-            "currentPlayer": self.currentPlayer,
-            "winner": self.winner,
-            "clients": len(self.clients)
+        "board": self.board.board,
+        "currentPlayer": self.currentPlayer,
+        "winner": self.winner,
+        "clients": len(self.clients),
+        "winsX": self.statsX.wins,
+        "winsO": self.statsO.wins
         }
 
-        packet = json.dumps(data).encode()
+        disconnected = []
 
         for client in self.clients:
             try:
-                client.send(packet)
+                self.send_json(client, data)
             except:
-                pass
+                disconnected.append(client)
+
+        for client in disconnected:
+            self.clients.remove(client)
 
     def win_check(self, board, symbol):
-        if board[0][0]==board[0][1]==board[0][2]==symbol:
+        if board[0][0] == board[0][1] == board[0][2] == symbol:
             return True
-        if board[1][0]==board[1][1]==board[1][2]==symbol:
+        if board[1][0] == board[1][1] == board[1][2] == symbol:
             return True
-        if board[2][0]==board[2][1]==board[2][2]==symbol:
+        if board[2][0] == board[2][1] == board[2][2] == symbol:
             return True
-        if board[0][0]==board[1][0]==board[2][0]==symbol:
+        if board[0][0] == board[1][0] == board[2][0] == symbol:
             return True
-        if board[0][1]==board[1][1]==board[2][1]==symbol:
+        if board[0][1] == board[1][1] == board[2][1] == symbol:
             return True
-        if board[0][2]==board[1][2]==board[2][2]==symbol:
+        if board[0][2] == board[1][2] == board[2][2] == symbol:
             return True
-        if board[0][0]==board[1][1]==board[2][2]==symbol:
+        if board[0][0] == board[1][1] == board[2][2] == symbol:
             return True
-        if board[0][2]==board[1][1]==board[2][0]==symbol:
+        if board[0][2] == board[1][1] == board[2][0] == symbol:
             return True
-        c = 0
-        for lista in board:
-            for element in lista:
-                if element == "O" or element == "X":
-                    c += 1
-        if c == 9:
+
+        if len(self.board) == 9:
             return "REMIS"
+
         return False
 
     def handle_client(self, conn):
         while True:
             try:
-                data = conn.recv(1024).decode()
-                if not data:
+                move = self.receive_json(conn)
+                if move is None:
                     break
 
-                move = json.loads(data)
                 if move.get("action") == "reset":
                     self.reset_game()
                     continue
+
                 row = move["row"]
                 col = move["col"]
                 symbol = move["symbol"]
 
-                if self.board[row][col] == "" and symbol == self.currentPlayer:
-                    self.board[row][col] = symbol
-                    result = self.win_check(self.board, symbol)
+                if self.board.board[row][col] == "" and symbol == self.currentPlayer:
+                    self.board.board[row][col] = symbol
+                    result = self.win_check(self.board.board, symbol)
                     if result is True:
                         self.winner = symbol
+                        if symbol == "X":
+                            self.statsX = self.statsX + Stats(1)
+                        if symbol == "O":
+                            self.statsO = self.statsO + Stats(1)
+                        print(self.statsX)
+                        print(self.statsO)
                     elif result == "REMIS":
                         self.winner = "REMIS"
                     else:
-                        self.currentPlayer = "O" if self.currentPlayer == "X" else "X"
+                        if self.currentPlayer == "X":
+                            self.currentPlayer = "O"
+                        else:
+                            self.currentPlayer = "X"
                     self.broadcast()
             except:
                 break
         conn.close()
 
     def listen(self):
-        self.s.bind((self.host, self.port))
+        self.connect()
+        self.s.bind((self.__host, self.__port))
         self.s.listen(2)
-        print(f"Server działa {self.host}:{self.port}")
-
+        self.log(f"Server dziala {self.__host}:{self.__port}")
         while True:
             conn, addr = self.s.accept()
-            print(f"Połączono: {addr}")
+            self.log(f"Polaczono: {addr}")
             self.clients.append(conn)
-            t = threading.Thread(target=self.handle_client, args=(conn,))
+            t = threading.Thread(target=self.handle_client,args=(conn,))
             t.start()
